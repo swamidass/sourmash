@@ -4,11 +4,12 @@ Save and load MinHash sketches in a YAML format, along with some metadata.
 """
 import yaml
 import hashlib
+import khmer
 import sourmash_lib
 
 class SourmashSignature(object):
     "Main class for signature information."
-    def __init__(self, email, estimator, name='', filename=''):
+    def __init__(self, email, estimator, name='', filename='', hll=None):
         self.d = {}
         self.d['class'] = 'sourmash_signature'
         self.d['type'] = 'mrnaseq'
@@ -17,7 +18,9 @@ class SourmashSignature(object):
             self.d['name'] = name
         if filename:
             self.d['filename'] = filename
-        
+        if hll:
+            self.d['hll'] = hll
+
         self.estimator = estimator
 
     def md5sum(self):
@@ -48,6 +51,8 @@ class SourmashSignature(object):
         sketch['prime'] = estimator.p
         sketch['mins'] = list(map(int, estimator.mh.get_mins()))
         sketch['md5sum'] = self.md5sum()
+        if 'hll' in self.d:
+            sketch['hll'] = self.d['hll'].counters
         e['signature'] = sketch
 
         return self.d.get('email'), self.d.get('name'), \
@@ -158,6 +163,10 @@ def _load_one_signature(sketch, email, name, filename, ignore_md5sum=False):
         for m in mins:
             e.mh.add_hash(m)
 
+        if 'hll' in sketch:
+            hll = khmer.HLLCounter(0.1, ksize)
+            hll.counters = sketch['hll']
+
         sig = SourmashSignature(email, e)
         
     if not ignore_md5sum:
@@ -201,9 +210,9 @@ def save_signatures(siglist):
         record['version'] = '0.2'
         record['class'] = 'sourmash_signature'
         record['type'] = 'mrnaseq'
-        
-        return yaml.dump(record)
-    
+
+        return yaml.safe_dump(record)
+
     assert 0
 
 def test_roundtrip():

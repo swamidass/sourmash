@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 import os
 import argparse
+import khmer
 import screed
 import sourmash_lib
 import sourmash_signature as sig
@@ -160,6 +161,8 @@ Commands can be:
                                         protein=args.protein)
             Elist.append(E)
 
+         hll = khmer.HLLCounter(0.1, k)
+
          for n, record in enumerate(screed.open(filename)):
             if n % 10000 == 0:
                print('...', filename, n)
@@ -182,11 +185,15 @@ Commands can be:
             for E in Elist:
                E.add_sequence(s)
 
+            seq = s.upper().replace('N', 'G')
+            hll.consume_string(seq)
+
          siglist = []
          for E in Elist:
             signature = sig.SourmashSignature('titus@idyll.org',
                                               E,
-                                              filename=filename)
+                                              filename=filename,
+                                              hll=hll)
             siglist.append(signature)
 
          data = sig.save_signatures(siglist)
