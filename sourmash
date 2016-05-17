@@ -617,6 +617,52 @@ Commands can be:
                 fp.close()
 
 
+    def search_mxt(self):
+        "Search an mxt file for multiple signatures."
+        import numpy
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('mxtfile')
+        parser.add_argument('signatures', nargs='+')
+        parser.add_argument('-k', '--ksize', type=int, default=31)
+        parser.add_argument('-o', '--output-filename')
+        args = parser.parse_args(sys.argv[2:])
+
+        mxtfile = args.mxtfile
+        mxt_dict = {}
+        for line in open(mxtfile):
+            node, hashes = line.strip().split(',')
+            hashes = [ int(h) for h in hashes.split(' ') ]
+            e = sourmash_lib.Estimators(len(hashes), ksize=31)
+            for h in hashes:
+                e.mh.add_hash(h)
+            mxt_dict[int(node)] = e
+
+        siglist = []
+        for filename in args.signatures:
+            data = open(filename).read()
+            print('loading', filename)
+            loaded = sig.load_signatures(data, select_ksize=args.ksize)
+            siglist.extend(loaded)
+
+        if len(siglist) == 0:
+            print('no signatures!')
+            sys.exit(-1)
+
+        results = []
+        for s in siglist:
+            for v in mxt_dict:
+                results.append((s.estimator.mh.compare(mxt_dict[v].mh),
+                               (mxt_dict[v].mh.compare(s.estimator.mh)),
+                               v, s.name()))
+        results.sort()
+        print('score,node id,sig name')
+        for score1, score2, node, name in results[-10:]:
+            print('%.3f' % score1, score2, node, name)
+
+        print('sum: %.3f' % (sum( [ x[0] for x in results ] )))
+
+
 def main():
     SourmashCommands()
 
