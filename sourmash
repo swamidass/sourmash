@@ -625,13 +625,30 @@ Commands can be:
         parser.add_argument('mxtfile')
         parser.add_argument('signatures', nargs='+')
         parser.add_argument('-k', '--ksize', type=int, default=31)
+        parser.add_argument('-l', '--level', type=int, default=None)
         parser.add_argument('-o', '--output-filename')
         args = parser.parse_args(sys.argv[2:])
 
         mxtfile = args.mxtfile
+        gxt_nodes = set()
+        if args.level is not None:
+            gxtfile = mxtfile.rsplit('.', 1)[0] + '.gxt'
+
+            print('reading gxtfile for level', args.level)
+            gxt_nodes = [ x.strip().split(',') for x in open(gxtfile) ]
+            gxt_nodes = [ x for x in gxt_nodes[1:] if len(x) == 4 ]
+            gxt_nodes = [ (int(x[0]), int(x[3])) for x in gxt_nodes ]
+            gxt_nodes = set([ a for (a,b) in gxt_nodes if b == args.level ])
+
+            print('read %d nodes' % len(gxt_nodes))
+        print('reading mxt file')
+        
         mxt_dict = {}
         for line in open(mxtfile):
             node, hashes = line.strip().split(',')
+            node = int(node)
+            if gxt_nodes and node not in gxt_nodes:
+                continue
             hashes = [ int(h) for h in hashes.split(' ') ]
             e = sourmash_lib.Estimators(len(hashes), ksize=31)
             for h in hashes:
@@ -649,18 +666,21 @@ Commands can be:
             print('no signatures!')
             sys.exit(-1)
 
-        results = []
         for s in siglist:
+            results = []
             for v in mxt_dict:
-                results.append((s.estimator.mh.compare(mxt_dict[v].mh),
-                               (mxt_dict[v].mh.compare(s.estimator.mh)),
+                results.append((
+                               mxt_dict[v].mh.compare(s.estimator.mh),
+                               s.estimator.mh.compare(mxt_dict[v].mh),
                                v, s.name()))
-        results.sort()
-        print('score,node id,sig name')
-        for score1, score2, node, name in results[-10:]:
-            print('%.3f' % score1, score2, node, name)
+            results.sort()
+            print('sig:', results[0][-1])
+            for score1, score2, node, name in results[-4:]:
+                if score1 > 0.000:
+                    print('%.3f' % score1, '%.3f' % score2, node)
 
-        print('sum: %.3f' % (sum( [ x[0] for x in results ] )))
+            print('sum: %.3f' % (sum( [ x[0] for x in results ] )))
+            print('---')
 
 
 def main():

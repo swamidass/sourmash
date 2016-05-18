@@ -18,7 +18,8 @@ class Estimators(object):
     A simple bottom n-sketch MinHash implementation.
     """
 
-    def __init__(self, n=None, max_prime=1e10, ksize=None, protein=False):
+    def __init__(self, n=None, max_prime=9999999967,
+                 ksize=None, protein=False):
         if n is None:
             raise Exception
         if ksize is None:
@@ -31,8 +32,11 @@ class Estimators(object):
             self.is_protein = True
 
         # get a prime to use for hashing
-        p = get_prime_lt_x(max_prime)
-        self.p = p
+        if max_prime != 9999999967:
+            raise Exception("not supported at this time")
+        #p = get_prime_lt_x(max_prime)
+        self.p = 9999999967
+        p = 9999999967
 
         # initialize sketch to size n
         self.mh = _minhash.MinHash(n, ksize, p, protein)
