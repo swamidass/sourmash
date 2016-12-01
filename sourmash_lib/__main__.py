@@ -250,9 +250,6 @@ Commands can be:
                 with open(filename, 'w') as fp:
                     sig.save_signatures(siglist, fp)
 
-        print('Computing signature for ksizes: %s' % str(ksizes),
-              file=sys.stderr)
-
         if not args.name:
             for filename in args.filenames:
                 sigfile = os.path.basename(filename) + '.sig'
