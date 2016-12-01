@@ -78,6 +78,10 @@ class SourmashSignature(object):
         sketch['md5sum'] = self.md5sum()
         if estimator.hll is not None:
             sketch['cardinality'] = estimator.hll.estimate_cardinality()
+        if estimator.mh.is_protein():
+            sketch['molecule'] = 'protein'
+        else:
+            sketch['molecule'] = 'dna'
         e['signature'] = sketch
 
         return self.d.get('email'), self.d.get('name'), \
@@ -126,7 +130,8 @@ def _guess_open(filename):
     return sigfile
 
 
-def load_signatures(data, select_ksize=None, ignore_md5sum=False):
+def load_signatures(data, select_ksize=None, select_moltype=None,
+                    ignore_md5sum=False):
     """Load a YAML string with signatures into classes.
 
     Returns list of SourmashSignature objects.
@@ -171,7 +176,11 @@ def load_signatures(data, select_ksize=None, ignore_md5sum=False):
             sig = _load_one_signature(sketch, email, name, filename,
                                           ignore_md5sum)
             if not select_ksize or select_ksize == sig.estimator.ksize:
-                yield sig
+                if not select_moltype or \
+                     sig.estimator.is_molecule_type(select_moltype):
+                    yield sig
+
+    return siglist
 
 
 def _load_one_signature(sketch, email, name, filename, ignore_md5sum=False):
@@ -179,7 +188,15 @@ def _load_one_signature(sketch, email, name, filename, ignore_md5sum=False):
     ksize = sketch['ksize']
     mins = list(map(int, sketch['mins']))
     n = int(sketch['num'])
-    e = sourmash_lib.Estimators(ksize=ksize, n=n)
+    molecule = sketch.get('molecule', 'dna')
+    if molecule == 'protein':
+        is_protein = True
+    elif molecule == 'dna':
+        is_protein = False
+    else:
+        raise Exception("unknown molecule type: {}".format(molecule))
+
+    e = sourmash_lib.Estimators(ksize=ksize, n=n, protein=is_protein)
     for m in mins:
         e.mh.add_hash(m)
     if 'cardinality' in sketch:
