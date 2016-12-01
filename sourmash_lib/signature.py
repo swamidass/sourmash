@@ -180,8 +180,6 @@ def load_signatures(data, select_ksize=None, select_moltype=None,
                      sig.estimator.is_molecule_type(select_moltype):
                     yield sig
 
-    return siglist
-
 
 def _load_one_signature(sketch, email, name, filename, ignore_md5sum=False):
     """Helper function to unpack and check one signature block only."""
