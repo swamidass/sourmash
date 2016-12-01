@@ -51,6 +51,8 @@ Commands can be:
         parser.add_argument('-k', '--ksize', default=DEFAULT_K, type=int)
         parser.add_argument('-f', '--force', action='store_true')
         parser.add_argument('--save-matches', type=argparse.FileType('wt'))
+        parser.add_argument('--csv', type=argparse.FileType('wt'))
+
         parser.add_argument('--protein', dest='protein', action='store_true')
         parser.add_argument('--no-protein', dest='protein',
                             action='store_false')
@@ -128,6 +130,17 @@ Commands can be:
                 print('saving all matches to "{}"'.format(outname))
                 sig.save_signatures([ m for (d, m, f) in distances ],
                                     args.save_matches)
+            if args.csv:
+                fieldnames = ['similarity_qa', 'similarity_aq',
+                               'name', 'filename']
+                w = csv.DictWriter(args.csv, fieldnames=fieldnames)
+                w.writeheader()
+
+                for d, m, f in distances:
+                    w.writerow(dict(similarity_qa=d,
+                                    similarity_aq=m.similarity(query),
+                                    name=m.name(), filename=f))
+
         else:
             print('** no matches in %d signatures' % len(against),
                   file=sys.stderr)
