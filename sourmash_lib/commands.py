@@ -11,6 +11,7 @@ import sourmash_lib
 from . import signature as sig
 from . import sourmash_args
 from .logging import notify, error
+from . import MAX_HASH
 
 DEFAULT_K = 31
 DEFAULT_N = 500
@@ -181,7 +182,7 @@ def compute(args):
         seed = args.seed
         max_hash = 0
         if args.scaled:
-            max_hash = 2**64 / float(args.scaled)
+            max_hash = MAX_HASH / float(args.scaled)
 
         # one estimator for each ksize
         Elist = []
@@ -695,7 +696,7 @@ def sbt_gather(args):
     notify('query signature has max_hash: {}', query.estimator.max_hash)
     orig_query = query
 
-    R_metagenome = 2**64 / float(orig_query.estimator.max_hash)
+    R_metagenome = MAX_HASH / float(orig_query.estimator.max_hash)
 
     new_mins = query.estimator.get_hashes()
     e = sourmash_lib.Estimators(ksize=args.ksize, n=len(new_mins))
@@ -724,7 +725,7 @@ def sbt_gather(args):
         found_mins = best_ss.estimator.get_hashes()
 
         if best_ss.estimator.max_hash:
-            R_genome = 2**64 / float(best_ss.estimator.max_hash)
+            R_genome = MAX_HASH/ float(best_ss.estimator.max_hash)
         elif best_ss.estimator.hll:
             genome_size = best_ss.estimator.hll.estimate_cardinality()
             genome_max_hash = max(found_mins)
@@ -736,7 +737,7 @@ def sbt_gather(args):
             sys.exit(-1)
 
         R_comparison = max(R_metagenome, R_genome)
-        new_max_hash = 2**64 / float(R_comparison)
+        new_max_hash = MAX_HASH / float(R_comparison)
         new_mins = set([ i for i in new_mins if i < new_max_hash ])
         found_mins = set([ i for i in found_mins if i < new_max_hash ])
 

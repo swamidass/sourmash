@@ -1,6 +1,9 @@
 from __future__ import print_function, unicode_literals
 
 import pytest
+import screed
+
+from . import sourmash_tst_utils as utils
 from . import Estimators
 
 # below, 'track_abundance' is toggled to both True and False by py.test --
@@ -159,3 +162,13 @@ def test_abund_similarity_zero():
         E1.mh.add_hash(i)
 
     assert E1.similarity(E2) == 0.0
+
+
+def test_count():
+    testdata1 = utils.get_test_data('genome-s10.fa.gz')
+    E1 = Estimators(n=500, ksize=11, with_cardinality=True)
+    with screed.open(testdata1, 'r') as seqs:
+        for seq in seqs:
+            E1.add_sequence(seq['sequence'])
+
+    assert E1.count() == len(E1.hll), "True cardinality: 444952"

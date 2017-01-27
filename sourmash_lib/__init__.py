@@ -15,6 +15,7 @@ except ImportError:
     pass
 
 DEFAULT_SEED=MinHash(1,1).seed
+MAX_HASH = 2 ** 64
 
 class Estimators(object):
     """
@@ -177,6 +178,12 @@ class Estimators(object):
     def count_common(self, other):
         "Calculate number of common k-mers between two sketches."
         return self.mh.count_common(other.mh)
+
+    def count(self):
+        mins = self.mh.get_mins()
+        k = len(mins)
+        max_hash = self.max_hash or MAX_HASH
+        return float(k) / (sum(mins) / float(max_hash)) - 1.0
 
 
 def dotproduct(a, b, normalize=True):
