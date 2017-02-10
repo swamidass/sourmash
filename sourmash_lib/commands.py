@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import argparse
+from collections import defaultdict
 import csv
 import os
 import os.path
@@ -544,7 +545,11 @@ def sbt_search(args):
 
     parser = argparse.ArgumentParser()
     parser.add_argument('sbt_name', help='name of SBT to load')
-    parser.add_argument('query', help='signature to query')
+    parser.add_argument('queries', nargs='+',
+                        help='list of signatures to query')
+    parser.add_argument('-i', '--intersection', action='store_true',
+                        default=False,
+                        help='calculate intersection between queries')
     parser.add_argument('-k', '--ksize', type=int, default=DEFAULT_K)
     parser.add_argument('--threshold', default=0.08, type=float)
     parser.add_argument('--save-matches', type=argparse.FileType('wt'))
@@ -558,30 +563,63 @@ def sbt_search(args):
     if args.best_only:
         search_fn = SearchMinHashesFindBest().search
 
+    if args.intersection:
+        intersection = defaultdict(list)
+
     tree = SBT.load(args.sbt_name, leaf_loader=SigLeaf.load)
-    query = sourmash_args.load_query_signature(args.query,
-                                               select_ksize=args.ksize,
-                                               select_moltype=moltype)
-    query_moltype = sourmash_args.get_moltype(query)
-    query_ksize = query.estimator.ksize
-    notify('loaded query: {}... (k={}, {})', query.name()[:30],
-                                             query_ksize,
-                                             query_moltype)
+    for i, q in enumerate(args.queries):
+        query = sourmash_args.load_query_signature(q,
+                                                select_ksize=args.ksize,
+                                                select_moltype=moltype)
+        query_moltype = sourmash_args.get_moltype(query)
+        query_ksize = query.estimator.ksize
+        notify('loaded query: {}... (k={}, {})', query.name()[:30],
+                                                query_ksize,
+                                                query_moltype)
 
-    results = []
-    for leaf in tree.find(search_fn, query, args.threshold):
-        results.append((query.similarity(leaf.data), leaf.data))
-        #results.append((leaf.data.similarity(ss), leaf.data))
+        results = []
+        for leaf in tree.find(search_fn, query, args.threshold):
+            results.append((query.similarity(leaf.data), leaf.data))
+            #results.append((leaf.data.similarity(ss), leaf.data))
 
-    results.sort(key=lambda x: -x[0])   # reverse sort on similarity
-    for (similarity, query) in results:
-        print('{:.2f} {}'.format(similarity, query.name()))
+        results.sort(key=lambda x: -x[0])   # reverse sort on similarity
+        for (similarity, query) in results:
+            print('{:.2f} {}'.format(similarity, query.name()))
 
-    if args.save_matches:
+        if args.intersection:
+            if not intersection:
+                for similarity, leaf in results:
+                    intersection[leaf].append(similarity)
+            else:
+                current_leaves = set(intersection.keys())
+
+                for similarity, leaf in results:
+                    if leaf in intersection:
+                        intersection[leaf].append(similarity)
+
+                # remove old results not found in the intersection
+                for leaf in current_leaves:
+                    if len(intersection[leaf]) != i:
+                        del intersection[leaf]
+
+        if args.save_matches and not args.intersection:
+            outname = args.save_matches.name
+            notify('saving all matches to "{}"', outname)
+            sig.save_signatures([ m for (sim, m) in results ],
+                                args.save_matches)
+
+    if args.save_matches and args.intersection:
         outname = args.save_matches.name
-        notify('saving all matches to "{}"', outname)
-        sig.save_signatures([ m for (sim, m) in results ],
+        notify('saving intersection matches to "{}"', outname)
+        sig.save_signatures([ m for m in intersection],
                             args.save_matches)
+
+        outname = args.save_matches.name + ".similarity.csv"
+        notify('saving intersection matches to "{}"', outname)
+        with open(outname, 'wt') as f:
+            w = csv.writer(f)
+            for leaf in intersection:
+                w.writerow([leaf.name()] + intersection[leaf])
 
 
 def categorize(args):

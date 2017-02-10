@@ -58,8 +58,11 @@ class SourmashSignature(object):
         for k in self.d:
             if self.d[k] != other.d[k]:
                 return False
-            
+
         return self.estimator == other.estimator
+
+    def __hash__(self):
+        return hash(tuple(sorted(d for d in self.d)))
 
     def name(self):
         "Return as nice a name as possible, defaulting to md5 prefix."
